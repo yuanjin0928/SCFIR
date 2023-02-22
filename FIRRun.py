@@ -1,57 +1,72 @@
+import numpy as np
+from shared import *
 
-def cvtRun(self, RNS):
-        RNS = np.array(RNS)
-        tap = len(self.input)
-        selNum = np.log2(tap)
-        inputSC = np.empty(RNS.shape[0], tap, dtype=bool)
-        weightSC = np.empty(RNS.shape[0], tap, dtype=bool)
-        selSC = np.empty(RNS.shape[0], selNum, dtype=bool)
+def cvtRun(input, weight, rns):
+    """Conventional design of FIR filter
 
-        for i in range(tap):
-            inputSC[:, i] = RNS[:, 0] < self.input[i]
-            weightSC[:, i] = RNS[:, 1] < self.weight[i]
-        for i in range(selNum):
-            selSC[:, i] = RNS[:, 2+i] < 0.5
-        
-        productSC = np.logical_not(np.logical_xor(inputSC, weightSC))
-        outputSC = np.empty(RNS.shape[0], dtype=bool)
-        for i in range(RNS.shape[0]):
-            outputSC[i] = productSC[i, bin2Float(selSC[i, :])]
-        
-        n1 = (outputSC == True).sum()
-        n0 = (outputSC == False).sum()
-        result = (n1-n0)/(n1+n0)
-        return result
+    Args:
+        input (1d numpy array): input of the filter
+        weight (1d numpy array): weight of the filter
+        rns (2d numpy array): used to convert input and weight to stochastic numbers
 
-def HWARun(self, RNS, m):
-        RNS = np.array(RNS)
-        tap = len(self.input)
-        inputSC = np.empty(RNS.shape[0], tap, dtype=bool)
-        selSC = np.empty(RNS.shape[0], m, dtype=bool)
+    Returns:
+        float: result of the inner product
+    """
+    input = np.transpose(input)
+    weight = np.transpose(weight)
 
-        for i in range(tap):
-            inputSC[:, i] = RNS[:, 0] < self.input[i]
-        for i in range(m):
-            selSC[:, i] = RNS[:, 1+i] < 0.5
-        
-        sign = (self.weight < 0)
-        productSC = np.empty(RNS.shape[0], tap, dtype=bool)
-        for i in range(tap):
-            productSC[:, i] = np.logical_xor(inputSC[:, i], sign)
-        
-        outputSC = np.empty(RNS.shape[0], dtype=bool)
-        q = weightNormAndQuan(self.weight, m)
-        posRef = np.zeros(tap)
-        cnt = 0
-        for i in range(tap):
-            cnt += q[i]
-            posRef[i] = cnt - 1
-        
-        for i in range(RNS.shape[0]):
-            a = posRef - bin2Dec(selSC[i, :])
-            sel = np.min(np.argwhere(a >= 0))
-            outputSC[i] = productSC[i, sel]
-        n1 = (outputSC == True).sum()
-        n0 = (outputSC == False).sum()
-        result = (n1-n0)/(n1+n0)
-        return result   
+    # Convert input and weight to bipolar represented SN
+    inputSC = rns[:, 0] < (input+1)/2
+    weightSC = rns[:, 1] < (weight+1)/2
+    # Compute unipolar represented selection signal
+    selSC = rns[:, 2:] < 0.5
+    
+    # Use xnor to perform multiplication of input and weight 
+    productSC = np.logical_not(np.logical_xor(inputSC, weightSC))
+    # Perform scaled addition
+    outputSC = softMux(productSC, selSC)
+    
+    n1 = (outputSC == True).sum()
+    n0 = (outputSC == False).sum()
+    result = (n1-n0)/(n1+n0)
+    return result
+
+
+def HWARun(input, weight, height, rns):
+    """Hard-wired weighted average design of FIR filter
+
+    Args:
+        input (1d numpy array): input of the filter
+        weight (1d numpy array): weight of the filter
+        height (int): height of MUX
+        rns (2d numpy array): used to convert input and weight to stochastic numbers
+
+    Returns:
+        float: result of the inner product
+    """
+    weight = np.transpose(weight)
+    # Normalized and quantized weight
+    q = weightNormAndQuan(weight, height)
+
+    # Replicate input according to individual weight
+    inputExt = np.transpose(np.empty(2**height))
+    cnt = 0
+    for i in range(len(q)):
+        num = q[i]
+        for j in range(num):
+            inputExt[cnt] = input[i]
+            cnt = cnt + 1
+
+    # Convert input to bipolar represented SN
+    inputSC = rns[:, 0] < (inputExt+1)/2
+    # Compute unipolar represented selection signal
+    selSC = rns[:, 1:] < 0.5
+    sign = weight < 0
+    
+    productSC = np.logical_xor(inputSC, sign)
+    outputSC = softMux(productSC, selSC)
+    
+    n1 = (outputSC == True).sum()
+    n0 = (outputSC == False).sum()
+    result = (n1-n0)/(n1+n0)
+    return result   

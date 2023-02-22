@@ -1,30 +1,40 @@
 import numpy as np
 
-#-----binary to float-----#
-# parameter
-#   bin: array of bits representing a float   
-# return
-#   numerator / denominator: decimal representd by bin 
+"""
+    Useful public functions
+"""
+
 def bin2Float(bin):
+    """Binary to float
+
+    Args:
+        bin (1d numpy array): array of bits representing a float
+
+    Returns:
+        flost: decimal representd by bin
+    """
     numerator = 0
     denominator = pow(2, len(bin))
     for i in range(len(bin)):
         # bin represent a decimal
-        numerator *= 2  # use integer to avoid rounding error
+        numerator *= 2 
         numerator += bin[i]
     return numerator / denominator
 
-#-----signed binary to decimal-----#
-# parameter
-#   bin: array of bits representing a signed float   
-# return
-#   numerator / denominator: float representd by bin 
 def signedBin2Float(bin):
+    """Signed binary to decimal
+
+    Args:
+        bin (1d numpy array): array of bits representing a signed float 
+
+    Returns:
+        flost: float representd by bin 
+    """
     numerator = 0
     denominator = pow(2, len(bin)-1)
     for i in range(1,len(bin)):
         # bin represent a decimal
-        numerator *= 2  # use integer to avoid rounding error
+        numerator *= 2 
         numerator += bin[i]
 
     if (bin[0] == 1):
@@ -32,14 +42,17 @@ def signedBin2Float(bin):
 
     return numerator / denominator
 
-#-----Mux tree weight normalization and quantization-----#
-# parameter
-#   w: weight
-#   m: height of mux tree
-# return
-#   q: quantized and normalized weight
 def weightNormAndQuan(w, m):
-    a = np.array(abs(w))
+    """Mux tree weight normalization and quantization
+
+    Args:
+        w (1d numpy array): weight
+        m (int): height of mux tree
+
+    Returns:
+        1d numpy array: quantized and normalized weight
+    """
+    a = np.abs(w)
     sum = np.sum(a)
     t = a / sum * 2**m
     q = np.round(t)
@@ -54,15 +67,17 @@ def weightNormAndQuan(w, m):
 
     return q
 
-#-----compute output sequence of a mux with given number of inputs-----#
-# parameter
-#   input: input to the softMux. size: n*2^sel
-#   sel  : selection signal. size: n*sel
-# return
-#   np.logical_or.reduce(input, axis=1): output of softMux. size: n     
+
 def softMux(input, sel):
-    input = np.array(input)
-    sel = np.array(sel)
+    """Compute output sequence of a mux with given number of inputs
+
+    Args:
+        input (2d numpy array): input to the softMux. size: SNLen*2^sel
+        sel (2d numpy array): selection signal. size: SNLen*sel
+
+    Returns:
+        1d numpy array: output of mux
+    """
     mask = np.ones(input.shape, dtype=bool)
 
     for i in range(sel.shape[1]):
