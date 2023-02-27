@@ -9,4 +9,3 @@ class inputGen():
         rn = rng.uniform(-1,1,num)
 
         return rn
-    
