@@ -6,30 +6,32 @@ def cvtRun(input, weight, rns):
     """Conventional design of a FIR filter
 
     Args:
-        input (1d numpy array): input of the filter
-        weight (1d numpy array): weight of the filter
+        input (2d numpy array): inputs to the filter
+        weight (1d numpy array): fiexed weight of the filter
         rns (2d numpy array): used to convert input and weight to stochastic numbers
 
     Returns:
-        float: output of the FIR filter at one time point
+        float: output of the FIR filter
     """
     input = np.transpose(input)
     weight = np.transpose(weight)
-
-    # Convert input and weight to bipolar represented SN
-    inputSC = rns[:, 0] < (input+1)/2
+    # Convert weight to bipolar represented SN
     weightSC = rns[:, 1] < (weight+1)/2
     # Compute unipolar represented selection signal
     selSC = rns[:, 2:] < 0.5
-    
-    # Use xnor to perform multiplication of input and weight 
-    productSC = np.logical_not(np.logical_xor(inputSC, weightSC))
-    # Perform scaled addition
-    outputSC = softMux(productSC, selSC)
-    
-    n1 = (outputSC == True).sum()
-    n0 = (outputSC == False).sum()
-    result = (n1-n0)/(n1+n0)
+
+    result = np.empty(input.shape[0])
+    for i in range(input.shape[0]):
+        # Convert input to bipolar represented SN
+        inputSC = rns[:, 0] < (input[i, :]+1)/2
+        
+        # Use xnor to perform multiplication of input and weight 
+        productSC = np.logical_not(np.logical_xor(inputSC, weightSC))
+        # Perform scaled addition
+        outputSC = softMux(productSC, selSC)
+        n1 = np.sum(outputSC)
+        result[i] = 2*n1/rns.shape[0]-1
+
     return result
 
 
@@ -37,42 +39,50 @@ def HWARun(input, weight, height, rns):
     """Hard-wired weighted average design of a FIR filter
 
     Args:
-        input (1d numpy array): input of the filter
-        weight (1d numpy array): weight of the filter
+        input (2d numpy array): inputs to the filter
+        weight (1d numpy array): fixed weight of the filter
         height (int): height of MUX
         rns (2d numpy array): used to convert input and weight to stochastic numbers
 
     Returns:
-        float: output of the FIR filter at one time point
+        float: output of the FIR filter
     """
+    input = np.transpose(input)
     weight = np.transpose(weight)
     # Normalized and quantized weight
     q = weightNormAndQuan(weight, height)
-
-    # Replicate input according to individual weight
-    inputExt = np.transpose(np.empty(2**height))
-    cnt = 0
-    for i in range(len(q)):
-        num = q[i]
-        for j in range(num):
-            inputExt[cnt] = input[i]
-            cnt = cnt + 1
-
-    # Convert input to bipolar represented SN
-    inputSC = rns[:, 0] < (inputExt+1)/2
-    # Compute unipolar represented selection signal
+    
     selSC = rns[:, 1:] < 0.5
     sign = weight < 0
-    
-    productSC = np.logical_xor(inputSC, sign)
-    outputSC = softMux(productSC, selSC)
-    
-    n1 = (outputSC == True).sum()
-    n0 = (outputSC == False).sum()
-    result = (n1-n0)/(n1+n0)
+
+    signExt = np.zeros((1,2**height), dtype=bool)
+    cnt = 0
+    for j in range(len(q)):
+            num = q[i]
+            signExt[cnt:(cnt+num)] = sign[i, j]
+            cnt = cnt + num
+
+    result = np.empty(input.shape[0])
+    for i in range(input.shape[0]):
+        # Replicate input according to individual weight
+        inputExt = np.empty((1,2**height))
+        cnt = 0
+        for j in range(len(q)):
+            num = q[i]
+            inputExt[cnt:(cnt+num)] = input[i, j]
+            cnt = cnt + num
+
+        # Convert input to bipolar represented SN
+        inputSC = rns[:, 0] < (inputExt+1)/2
+        
+        productSC = np.logical_xor(inputSC, signExt)
+        outputSC = softMux(productSC, selSC)
+        
+        n1 = np.sum(outputSC)
+        result[i] = 2*n1/rns.shape[0]-1
     return result 
 
-def MWARun(input, weight, rns):
+#def MWARun(input, weight, rns):
 
 def OLMUXRun(input, weight, rns):
     """Lowest optimum MUX tree design of a FIR filter
@@ -85,22 +95,56 @@ def OLMUXRun(input, weight, rns):
     Returns:
     float: output of the FIR filter at one time point
     """
-    # build lowest optimum tree
-    muxTree = OLMUXBuildTree(weight)
+    # Decide input position in the optimum lowest tree
+    inputTree = OLMUXCalInPos(weight)
+    # Build optimum lowest tree
+    muxTree = OLMUXBuildTree(inputTree)
     
-    result = OLMUXFunc(input, weight, muxTree, rns)
+    # transform input to SC 
+    input = np.transpose(input) 
+    weight = np.transpose(weight)
+    inputSC = np.logical_xor(rns[:, 0] < (input[i]+1)/2)
+    sign = weight < 0
+    productSC = np.logical_xor(inputSC, sign)
     
+    result = np.empty(input.shape[0])
+    for i in range(input.shape[0]):
+    # compute the results level by level. The output of previous level is the input of current level
+        for j in range(len(muxTree)):
+            cnt = 0 
+            muxNum = len(muxTree[j]['selWeight'])
+            input0 = np.empty((rns.shape[0],muxNum), dtype = bool)   # inputs to 0 port of all MUXes
+            input1 = np.empty((rns.shape[0],muxNum), dtype = bool)   # inputs to 1 port of all MUXes
+            s      = np.empty((rns.shape[0],muxNum), dtype = bool)   # input to selection port of all MUXes
+            if (j==0):
+                for k in range(len(muxTree[j]['primaryInput'])):
+                    if (k%2==0):
+                        input0[:, cnt] = productSC[muxTree[j]['primaryInput'][k]]
+                    else:
+                        input1[:, cnt] = productSC[muxTree[j]['primaryInput'][k]]
+                        cnt = cnt + 1
+            else:
+                levelInput = np.empty((rns.shape[0], len(muxTree[j]['primaryInput'])), dtype = bool)
+                for k in range(len(muxTree[j]['primaryInput'])):
+                    levelInput[:, k] = productSC[muxTree[j]['primaryInput'][k]]
+                input0 = np.concatenate((outputOfLastMuxes, levelInput), axis=1)[:, ::2]
+                input1 = np.concatenate((outputOfLastMuxes, levelInput), axis=1)[:, 1::2]
+            selArray = np.array([muxTree[j]['selWeight']])       
+            s =   rns[:, j] < selArray
+            # Calculate the output of current depth
+            outputOfLastMuxes = np.logical_or(np.logical_and(input0, np.invert(s)), np.logical_and(input1, s))
+
     return result
 
 
-def CeMuxRun(input, weight, height, rns):
+#def CeMuxRun(input, weight, height, rns):
 
 
-def OLMUXBuildTree(weight):
-    """Build lowest optimum MUX tree
+def OLMUXCalInPos(weight):
+    """Decide input position in the optimum lowest tree
 
     Args:
-        weight (list of float): list of weights of FIR filter
+        weight (1d numpy array): array of weights of FIR filter
 
     Returns:
         list: architecture of OLMUX tree
@@ -192,34 +236,10 @@ def OLMUXPackage(Qi):
         outputList.append([sum, -1, left, right])
     return outputList
 
-def OLMUXFunc(input, weight, muxTree, rns):
-    """Processing
-
-    Args:
-        input (1d numpy array): input of the filter
-        weight (1d numpy array): weight of the filter
-        rns (2d numpy array): used to convert input and weight to stochastic numbers
-
-    Returns:
-        float: output of the FIR filter at one time point
-    """    
-    taps = len(input)
-    # transform input to SC 
-    input = np.transpose(input) 
-    weight = np.transpose(weight)
-    inputSC = np.logical_xor(rns[:, 0] < (input[i]+1)/2)
-    sign = weight < 0
-    productSC = np.logical_xor(inputSC, sign)
-    
-    # for i in range(taps):
-    #     n1 = (productSC[i] == True).sum()
-    #     n0 = (productSC[i] == False).sum()
-    #     num = (n1-n0)/(n1+n0)
-    #     print(f'product_{i}: {num}')
-
+def OLMUXBuildTree(weight, inputTree):
     """  
         which inputs connect to which ports of which MUXes of one level 
-        eg. H = [5/32, 6/32, 7/32, 8/32, 16/32]
+        eg. H = [5/32, 6/32, 7/32, 8/32, 16/32]       
         level 1
         [
         [[1],[2]],
@@ -234,131 +254,68 @@ def OLMUXFunc(input, weight, muxTree, rns):
         [[1,2,3,4], [5]]
         ]
     """
-    inputLinkToMuxes  = [] 
-    # compute the results level by level. The output of previous level is the input of current level
-    for i in range(len(muxTree)):
-        # number of MUXes of current level. for first level, num of MUXes is len(Tree[0])/2 (len(Tree[0] must be a even number))
-        # for later level, the number of MUXex is decided by the output of previous level and the number of primary input at that level. 
-        muxNum = int((len(outputOfLastMuxes)+len(muxTree[i]))/2) if (i > 0) else int(len(muxTree[0])/2)
-        input0 = np.empty((rns.shape[0],muxNum), dtype = bool)   # inputs to 0 port of all MUXes
-        input1 = np.empty((rns.shape[0],muxNum), dtype = bool)   # inputs to 1 port of all MUXes
-        s      = np.empty((rns.shape[0],muxNum), dtype = bool)   # input to selection port of all MUXes
+    muxTree = []
+    lastInputLinkToMuxes = []
+    for i in range(len(inputTree)): 
+        primaryInput = []
+        level = {}
+        muxSel = []
+        inputLinkToMuxes = []
+        linkMux = []
+        sum0 = 0    
+        sum1 = 0
+        for j in range(len(lastInputLinkToMuxes)):
+            linkMux = linkMux + lastInputLinkToMuxes[j]
+            if (j % 2 == 0):
+                for k in range(len(lastInputLinkToMuxes[j])):
+                    sum0 = sum0 + abs(weight[lastInputLinkToMuxes[j][k]])
+            else:
+                inputLinkToMuxes.append(linkMux)
+                linkMux = []
+                for k in range(len(lastInputLinkToMuxes[j])):
+                    sum1 = sum1 + abs(weight[lastInputLinkToMuxes[j][k]])
+                muxSel.append(sum1/(sum0+sum1))
+                sum0 = 0
+                sum1 = 0
 
-        # input0Real = np.empty(muxNum, dtype = float)
-        # input1Real = np.empty(muxNum, dtype = float)
-        # sReal      = np.empty(muxNum, dtype = float)
-
-        cnt    = 0     # how many MUXes have been created
-        # deal with level after the first level
-        if (i > 0):
-            for j in range(len(outputOfLastMuxes)):
-                if (j%2 == 0):
-                    input0[:, cnt] = outputOfLastMuxes[:, j]
-                    # n1 = (input0[cnt] == True).sum()
-                    # n0 = (input0[cnt] == False).sum()
-                    # num = (n1-n0)/(n1+n0)
-                    # print(f'level_{i} mux_{cnt+1} port0 : {num}')
-
-                    # input0Real[cnt] = outputOfLastMuxesReal[j]
-                    # print(f'level_{i} mux_{cnt+1} port0_real : {input0Real[cnt]}')
+        if (len(inputTree[i])%2 == 0):
+            for j in range(len(inputTree[i])):
+                linkMux.append(inputTree[i][j]['pos'])
+                primaryInput.append(inputTree[i][j]['pos'])
+                if (j % 2 == 0):
+                    sum0 = abs(weight[inputTree[i][j]["pos"]]) 
                 else:
-                    input1[:, cnt] = outputOfLastMuxes[:, j]
-                    # n1 = (input1[cnt] == True).sum()
-                    # n0 = (input1[cnt] == False).sum()
-                    # num = (n1-n0)/(n1+n0)
-                    # print(f'level_{i} mux_{cnt+1} port1 :{num}')
-
-                    # input1Real[cnt] = outputOfLastMuxesReal[j]
-                    # print(f'level_{i} mux_{cnt+1} port1_real : {input1Real[cnt]}')
-                    
-                    cnt = cnt + 1
-                    # merge input index
-                    # since I deal with the output of MUX in order, so I always combine the first two entries in old inputLinkToMuxes
-                    newLink = [inputLinkToMuxes[0][0]+inputLinkToMuxes[0][1], inputLinkToMuxes[1][0]+inputLinkToMuxes[1][1]]  
-                    inputLinkToMuxes.append(newLink)
-                    inputLinkToMuxes.pop(0) # discard first two old link
-                    inputLinkToMuxes.pop(0)
-                    
-            if (len(muxTree[i]) > 0):
-                    if (len(muxTree[i])%2 == 1):
-                        input1[cnt] = productSC[muxTree[i][0]["pos"]]
-                        newLink = [inputLinkToMuxes[0][0]+inputLinkToMuxes[0][1], [muxTree[i][0]["pos"]]]
-                        inputLinkToMuxes.append(newLink)
-                        inputLinkToMuxes.pop(0) # only discard once since only one link left
-                        cnt = cnt + 1
-                        
-                        for j in range(1,len(muxTree[i])):
-                            if (j % 2 == 1):        
-                                input0[:, cnt] = productSC[:, muxTree[i][j]["pos"]]
-                            else:
-                                input1[:, cnt] = productSC[:, muxTree[i][j]["pos"]]   
-                                cnt = cnt + 1
-                                inputLinkToMuxes.append([[muxTree[i][j-1]["pos"]],[muxTree[i][j]["pos"]]]) 
-                    else:
-                        for j in range(len(muxTree[i])):
-                            if (j % 2 == 0):        
-                                input0[:, cnt] = productSC[:, muxTree[i][j]["pos"]]
-                            else:
-                                input1[:, cnt] = productSC[:, muxTree[i][j]["pos"]]   
-                                cnt = cnt + 1
-                                inputLinkToMuxes.append([[muxTree[i][j-1]["pos"]],[muxTree[i][j]["pos"]]]) 
-                    
-        # deal with first level
-        else:
-            for j in range(len(muxTree[0])):
-                if (j%2 == 0):
-                    input0[:, cnt] = productSC[:,muxTree[0][j]["pos"]]
-                    # n1 = (input0[cnt] == True).sum()
-                    # n0 = (input0[cnt] == False).sum()
-                    # num = (n1-n0)/(n1+n0)
-                    # print(f'level_{i} mux_{cnt+1} port0 :{num}')
-
-                    # input0Real[cnt] = input[muxTree[0][j]["pos"]]
-                    # print(f'level_{i} mux_{cnt+1} port0_real: {input0Real[cnt]}')
+                    inputLinkToMuxes.append(linkMux)
+                    linkMux = []
+                    sum1 = abs(weight[inputTree[i][j]['pos']])
+                    muxSel.append(sum1/(sum0+sum1))
+                    sum0 = 0
+                    sum1 = 0
+            level['selWeight'] = muxSel
+            level['primaryInput'] = primaryInput
+            muxTree.append(level)   
+            lastInputLinkToMuxes = inputLinkToMuxes
+        else: 
+            for j in range(len(inputTree[i])):
+                linkMux.append(inputTree[i][j]['pos'])
+                primaryInput.append(inputTree[i][j]['pos'])
+                if (j % 2 == 0):
+                    inputLinkToMuxes.append(linkMux)
+                    linkMux = []
+                    sum1 = abs(weight[inputTree[i][j]["pos"]]) 
+                    muxSel.append(sum1/(sum0+sum1))
+                    sum0 = 0
+                    sum1 = 0
                 else:
-                    input1[:, cnt] = productSC[:,muxTree[0][j]["pos"]]
-                    # n1 = (input1[cnt] == True).sum()
-                    # n0 = (input1[cnt] == False).sum()
-                    # num = (n1-n0)/(n1+n0)
-                    # print(f'level_{i} mux_{cnt+1} port1 :{num}')
+                    sum0 = abs(weight[inputTree[i][j]['pos']])
+            level['selWeight'] = muxSel
+            level['primaryInput'] = primaryInput
+            muxTree.append(level)   
+            lastInputLinkToMuxes = inputLinkToMuxes  
 
-                    # input1Real[cnt] = input[Tree[0][j]["pos"]]
-                    # print(f'level_{i} mux_{cnt+1} port1_real: {input1Real[cnt]}')
+    return muxTree     
 
-                    cnt = cnt + 1  
-                    inputLinkToMuxes.append([[muxTree[0][j-1]["pos"]],[muxTree[0][j]["pos"]]])  # update
-        
-        # convert selection signal to SC 
-        for j in range(len(inputLinkToMuxes)):
-            sum0 = 0
-            sum1 = 0
-            # compute the sum of coefficients linking to port 0
-            for k in range(len(inputLinkToMuxes[j][0])):
-                sum0 = sum0 + abs(weight[inputLinkToMuxes[j][0][k]])
-
-            # compute the sum of coefficients linking to port 1
-            for k in range(len(inputLinkToMuxes[j][1])):
-                sum1 = sum1 + abs(weight[inputLinkToMuxes[j][1][k]]) 
-
-            c = sum1 / (sum0 + sum1)     
-            s[:, j] =   rns[:, i] < c
-            # sReal[j] = c
-            # n1 = (s[j] == True).sum()
-            # n0 = (s[j] == False).sum()
-            # num = n1/(n1+n0)
-            # print(f'level_{i} mux_{j} s: {num}')
-
-            # print(f'level_{i} mux_{j} s_real: {c}')
-        
-        # call function to calculate the output of current depth
-        outputOfLastMuxes = np.logical_or(np.logical_and(input0, np.invert(s)), np.logical_and(input1, s))
-        #outputOfLastMuxesReal = depthLevelOutputReal(input0Real, input1Real, sReal)
-    
-    numOfTrue = (outputOfLastMuxes == True).sum()
-    numOfFalse = (outputOfLastMuxes == False).sum()
-    finalResult = (numOfTrue - numOfFalse) / (numOfTrue + numOfFalse)
-
-    # trueResult = np.inner(np.array(H), np.array(input)) / (np.sum(abs(np.array(H))))
-    # print(f'trueResult: {trueResult}')
-
-    return finalResult
+weight = np.array([0.1, 0.2, -0.3, 0.4, 0.5])
+inputTree = OLMUXCalInPos(weight)
+muxTree = OLMUXBuildTree(weight, inputTree)
+print(muxTree)
