@@ -11,10 +11,10 @@ def CVTRun(input, weight, rns):
         rns (2d numpy array): used to convert input and weight to stochastic numbers
 
     Returns:
-        float: output of the FIR filter
+        1d numpy array with type float: output of the FIR filter
     """
     input = np.transpose(input)
-    weight = np.transpose(weight)
+    weight = np.reshape(weight, (1,-1))
     # Convert weight to bipolar represented SN
     weightSC = rns[:, 1] < (weight+1)/2
     # Compute unipolar represented selection signal
@@ -36,7 +36,7 @@ def CVTRun(input, weight, rns):
 
 
 def HWARun(input, weight, height, rns):
-    """Hard-wired weighted average design of a FIR filter
+    """Hard-wired weighted average(HWA) design of a FIR filter
 
     Args:
         input (2d numpy array): inputs to the filter
@@ -45,10 +45,10 @@ def HWARun(input, weight, height, rns):
         rns (2d numpy array): used to convert input and weight to stochastic numbers
 
     Returns:
-        float: output of the FIR filter
+        1d numpy array with type float: output of the FIR filter
     """
     input = np.transpose(input)
-    weight = np.transpose(weight)
+    weight = np.reshape(weight, (1,-1))
     # Normalized and quantized weight
     q = weightNormAndQuan(weight, height)
     
@@ -83,11 +83,51 @@ def HWARun(input, weight, height, rns):
     return result 
 
 def MWARun(input, weight, rns):
-    
+    """Multi_level weighted average(MWA) design of a FIR filter
+
+    Args:
+        input (2d numpy array): inputs to the filter
+        weight (1d numpy array): fixed weight of the filter
+        rns (2d numpy array): used to convert input and weight to stochastic numbers
+
+    Returns:
+        1d numpy array with type float: output of the FIR filter
+    """
+    weight = np.reshape(weight, (1,-1))
     condProb = MWACalCondProb(np.abs(weight))
+    input = np.transpose(input)
+    
+    # Transform conditional probability to SC numbers
+    selSC = np.zeros((rns.shape[0], len(condProb)), dtype=bool)
+    selSC[:, 0] = rns[:, 1] < (condProb[0][0] + 1)/2
+    for i in range(1, len(condProb)):
+        levelCondProb = np.array(condProb[i]).reshape(1,-1)
+        muxInput = rns[:, 1+i] < (levelCondProb+1)/2
+
+        selSC[:, i] = softMux(muxInput, selSC[:, i-1::-1])
+
+    sign = weight < 0
+
+    result = np.empty(input.shape[0])
+    for i in range(len(input.shape[0])):
+        # Transform input into SC numbers
+        inputSC = rns[:, 0] < (input[i, :]+1)/2
+        # Use xnor to perform multiplication of input and weight 
+        productSC = np.logical_not(np.logical_xor(inputSC, sign))
+        result[:, i] = softMux(productSC, selSC[:, ::-1])
+
+    return result
+
 
 def MWACalCondProb(weight):
+    """Calculate conditional probabilities
 
+    Args:
+        weight (1d numpy array): weights of FIR filter
+
+    Returns:
+        list: list of conditional probabilties
+    """
     scaling = np.sum(weight)
     jointProb = []
     numLevel = int(log2(len(weight)))
@@ -121,7 +161,7 @@ def OLMUXRun(input, weight, rns):
         rns (1d numpy array): used to convert input and weight to stochastic numbers
     
     Returns:
-    float: output of the FIR filter at one time point
+        1d numpy array with type float: output of the FIR filter
     """
     # Decide input position in the optimum lowest tree
     inputTree = OLMUXCalInPos(weight)
@@ -130,7 +170,7 @@ def OLMUXRun(input, weight, rns):
     
     # transform input to SC 
     input = np.transpose(input) 
-    weight = np.transpose(weight)
+    weight = np.reshape(weight, (1,-1))
     inputSC = np.logical_xor(rns[:, 0] < (input[i]+1)/2)
     sign = weight < 0
     productSC = np.logical_xor(inputSC, sign)
