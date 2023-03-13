@@ -2,7 +2,7 @@ import numpy as np
 from math import *
 from shared import *
 
-def cvtRun(input, weight, rns):
+def CVTRun(input, weight, rns):
     """Conventional design of a FIR filter
 
     Args:
@@ -82,7 +82,35 @@ def HWARun(input, weight, height, rns):
         result[i] = 2*n1/rns.shape[0]-1
     return result 
 
-#def MWARun(input, weight, rns):
+def MWARun(input, weight, rns):
+    
+    condProb = MWACalCondProb(np.abs(weight))
+
+def MWACalCondProb(weight):
+
+    scaling = np.sum(weight)
+    jointProb = []
+    numLevel = int(log2(len(weight)))
+    # Calculate joint probability
+    for i in range(numLevel):
+        levelJointProb = []
+        reshapedArray = np.reshape(weight,(len(weight)//2**(i+1), 2**(i+1)))
+        for j in range(2**(i+1)):
+            levelJointProb.append(np.sum(reshapedArray[:, j]) / scaling)
+        jointProb.append(levelJointProb)
+    
+    # Calculate conditional probability
+    condProb = [[jointProb[0][1]]]
+    for i in range(1, len(jointProb)):
+        levelCondProb = []
+        for j in range(2**i,len(jointProb[i])):
+            levelCondProb.append((jointProb[i][j])/jointProb[i-1][j-2**i])
+        condProb.append(levelCondProb)
+    
+    return condProb
+        
+
+#def CeMuxRun(input, weight, height, rns):
 
 def OLMUXRun(input, weight, rns):
     """Lowest optimum MUX tree design of a FIR filter
@@ -135,10 +163,6 @@ def OLMUXRun(input, weight, rns):
             outputOfLastMuxes = np.logical_or(np.logical_and(input0, np.invert(s)), np.logical_and(input1, s))
 
     return result
-
-
-#def CeMuxRun(input, weight, height, rns):
-
 
 def OLMUXCalInPos(weight):
     """Decide input position in the optimum lowest tree
@@ -315,7 +339,5 @@ def OLMUXBuildTree(weight, inputTree):
 
     return muxTree     
 
-weight = np.array([0.1, 0.2, -0.3, 0.4, 0.5])
-inputTree = OLMUXCalInPos(weight)
-muxTree = OLMUXBuildTree(weight, inputTree)
-print(muxTree)
+weight = np.array([0.1, 0.2, -0.3, 0.4])
+print(MWACalCondProb(np.abs(weight)))
