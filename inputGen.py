@@ -1,11 +1,7 @@
 import numpy as np
+from numpy.random import default_rng
+ 
 
-#-----input generation-----#
-class inputGen():
-    
-    #-----generate input-----#
-    def gen(self, num):
-        rng = np.random.default_rng()
-        rn = rng.uniform(-1,1,num)
-
-        return rn
+def uniform(num,times):
+    rng = default_rng()
+    return rng.uniform(-1,1, )

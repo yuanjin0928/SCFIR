@@ -20,7 +20,7 @@ def CVTRun(input, weight, rns):
     # Compute unipolar represented selection signal
     selSC = rns[:, 2:] < 0.5
 
-    result = np.empty(input.shape[0])
+    result = np.empty(input.shape[0]) 
     for i in range(input.shape[0]):
         # Convert input to bipolar represented SN
         inputSC = rns[:, 0] < (input[i, :]+1)/2
@@ -379,5 +379,5 @@ def OLMUXBuildTree(weight, inputTree):
 
     return muxTree     
 
-weight = np.array([0.1, 0.2, -0.3, 0.4])
-print(MWACalCondProb(np.abs(weight)))
+# weight = np.array([0.1, 0.2, -0.3, 0.4])
+# print(MWACalCondProb(np.abs(weight)))
