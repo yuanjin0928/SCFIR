@@ -1,6 +1,6 @@
 import numpy as np
-from math import *
-from shared import *
+import math
+import shared
 
 def CVTRun(input, weight, rns):
     """Conventional design of a FIR filter
@@ -16,51 +16,61 @@ def CVTRun(input, weight, rns):
     input = np.transpose(input)
     weight = np.reshape(weight, (1,-1))
     # Convert weight to bipolar represented SN
-    weightSC = rns[:, 1] < (weight+1)/2
+    weightSC = np.reshape(rns[:, 1], (-1,1)) < (weight+1)/2
+    #tranResult = 2*np.sum(weightSC, axis=0) / rns.shape[0] -1
     # Compute unipolar represented selection signal
     selSC = rns[:, 2:] < 0.5
+    #tranResult = np.sum(selSC, axis=0) / rns.shape[0]
 
     result = np.empty(input.shape[0]) 
     for i in range(input.shape[0]):
         # Convert input to bipolar represented SN
-        inputSC = rns[:, 0] < (input[i, :]+1)/2
+        inputSC = np.reshape(rns[:, 0], (-1,1)) < (np.reshape(input[i, :],(1,-1))+1)/2
+        #tranResult = 2*np.sum(inputSC, axis=0) / rns.shape[0] - 1
+
+        """test correlation
+        corArray = np.empty_like(weight)
+        for j in range(weight.shape[0]):
+            corArray[j] = shared.correlation(weightSC[:, j],inputSC[:, j])
+        """
         
         # Use xnor to perform multiplication of input and weight 
         productSC = np.logical_not(np.logical_xor(inputSC, weightSC))
+        #tranResult = 2*np.sum(productSC, axis=0) / rns.shape[0] - 1  
         # Perform scaled addition
-        outputSC = softMux(productSC, selSC)
+        outputSC = shared.softMux(productSC, selSC)
         n1 = np.sum(outputSC)
         result[i] = 2*n1/rns.shape[0]-1
+        #trueResult = np.inner(input[i, :], weight)
 
     return result
 
 
-def HWARun(input, weight, height, rns):
+def HWARun(input, weight, rns):
     """Hard-wired weighted average(HWA) design of a FIR filter
 
     Args:
         input (2d numpy array): inputs to the filter
         weight (1d numpy array): fixed weight of the filter
-        height (int): height of MUX
         rns (2d numpy array): used to convert input and weight to stochastic numbers
 
     Returns:
         1d numpy array with type float: output of the FIR filter
     """
     input = np.transpose(input)
-    weight = np.reshape(weight, (1,-1))
+    height = int(math.log2(input.shape[1]))
     # Normalized and quantized weight
-    q = weightNormAndQuan(weight, height)
+    q = shared.weightNormAndQuan(weight, height)
     
     selSC = rns[:, 1:] < 0.5
     sign = weight < 0
 
     signExt = np.zeros((1,2**height), dtype=bool)
     cnt = 0
-    for j in range(len(q)):
-            num = q[i]
-            signExt[cnt:(cnt+num)] = sign[i, j]
-            cnt = cnt + num
+    for i in range(len(q)):
+        num = q[i]
+        signExt[cnt:(cnt+num)] = sign[i]
+        cnt = cnt + num
 
     result = np.empty(input.shape[0])
     for i in range(input.shape[0]):
@@ -68,15 +78,15 @@ def HWARun(input, weight, height, rns):
         inputExt = np.empty((1,2**height))
         cnt = 0
         for j in range(len(q)):
-            num = q[i]
-            inputExt[cnt:(cnt+num)] = input[i, j]
+            num = q[j]
+            inputExt[cnt:(cnt+num)] = input[i][j]
             cnt = cnt + num
 
         # Convert input to bipolar represented SN
-        inputSC = rns[:, 0] < (inputExt+1)/2
+        inputSC = np.reshape(rns[:, 0], (-1,1)) < (inputExt+1)/2
         
         productSC = np.logical_xor(inputSC, signExt)
-        outputSC = softMux(productSC, selSC)
+        outputSC = shared.softMux(productSC, selSC)
         
         n1 = np.sum(outputSC)
         result[i] = 2*n1/rns.shape[0]-1
@@ -102,19 +112,22 @@ def MWARun(input, weight, rns):
     selSC[:, 0] = rns[:, 1] < (condProb[0][0] + 1)/2
     for i in range(1, len(condProb)):
         levelCondProb = np.array(condProb[i]).reshape(1,-1)
-        muxInput = rns[:, 1+i] < (levelCondProb+1)/2
+        muxInput = np.reshape(rns[:, 1+i], (-1,1)) < (levelCondProb+1)/2
 
-        selSC[:, i] = softMux(muxInput, selSC[:, i-1::-1])
+        selSC[:, i] = shared.softMux(muxInput, selSC[:, i-1::-1])
 
     sign = weight < 0
 
     result = np.empty(input.shape[0])
-    for i in range(len(input.shape[0])):
+    for i in range(input.shape[0]):
         # Transform input into SC numbers
-        inputSC = rns[:, 0] < (input[i, :]+1)/2
+        inputSC = np.reshape(rns[:, 0], (-1,1)) < (np.reshape(input[i, :], (1,-1))+1)/2
         # Use xnor to perform multiplication of input and weight 
         productSC = np.logical_not(np.logical_xor(inputSC, sign))
-        result[:, i] = softMux(productSC, selSC[:, ::-1])
+        outputSC = shared.softMux(productSC, selSC[:, ::-1])
+
+        n1 = np.sum(outputSC)
+        result[i] = 2*n1/rns.shape[0]-1
 
     return result
 
@@ -129,12 +142,13 @@ def MWACalCondProb(weight):
         list: list of conditional probabilties
     """
     scaling = np.sum(weight)
+    numOfWeight = weight.size
     jointProb = []
-    numLevel = int(log2(len(weight)))
+    numLevel = int(math.log2(numOfWeight))
     # Calculate joint probability
     for i in range(numLevel):
         levelJointProb = []
-        reshapedArray = np.reshape(weight,(len(weight)//2**(i+1), 2**(i+1)))
+        reshapedArray = np.reshape(weight,(numOfWeight//2**(i+1), 2**(i+1)))
         for j in range(2**(i+1)):
             levelJointProb.append(np.sum(reshapedArray[:, j]) / scaling)
         jointProb.append(levelJointProb)
@@ -171,7 +185,7 @@ def OLMUXRun(input, weight, rns):
     # transform input to SC 
     input = np.transpose(input) 
     weight = np.reshape(weight, (1,-1))
-    inputSC = np.logical_xor(rns[:, 0] < (input[i]+1)/2)
+    inputSC = rns[:, 0] < (input[i]+1)/2
     sign = weight < 0
     productSC = np.logical_xor(inputSC, sign)
     
@@ -214,7 +228,7 @@ def OLMUXCalInPos(weight):
         list: architecture of OLMUX tree
     """
     taps = len(weight)
-    D = ceil(log2(taps))  # height of MUX tree
+    D = math.ceil(math.log2(taps))  # height of MUX tree
     Q = [] # packages 
     depth = []  # depth of all the coefficients
     for i in range(taps):

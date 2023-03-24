@@ -1,7 +1,6 @@
 # import wfdb
 import numpy as np
 import matplotlib.pyplot as plt
-from RNS import RNS
 from fir import fir
 
 if __name__ == "__main__":

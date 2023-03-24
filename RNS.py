@@ -3,7 +3,7 @@ import numpy as np
 from math import *
 from datetime import datetime
 from lfsr import LFSR
-from shared import *
+import shared
 
 CWD = os.getcwd()
 
@@ -29,7 +29,7 @@ def lfsrRNG(size, num):
                 lfsrRNS = LFSR(fpoly=polyList)
                 state = lfsrRNS.state
                 for i in range(lfsrRNS.expectedPeriod + 1):
-                    RNArray[i] = bin2Float(state)
+                    RNArray[i] = shared.bin2Float(state)
                     if np.array_equal(state, criticalState):
                         state = [0] * size
                     else:
@@ -47,7 +47,7 @@ def lfsrRNGGen(self, num, save):
     # add all-0 state. Total number of random number is lfsrRNS.expectedPeriod+1
     for i in range(lfsrRNS.expectedPeriod+1):
         #print(f'state: {state}')
-        outputRNS[0][i] = bin2Float(state)
+        outputRNS[0][i] = shared.bin2Float(state)
         rotated0 = np.roll(np.array(state), floor(self.length/2))
         #print(f'rotated0: {rotated0}')
         # add all-0 state
@@ -65,7 +65,7 @@ def lfsrRNGGen(self, num, save):
                 else:
                     rotated1 = np.roll(rotated0, -cnt)
                 #print(f'rotated1: {rotated1}')
-                outputRNS[j][i] = bin2Float(rotated1)
+                outputRNS[j][i] = shared.bin2Float(rotated1)
         
     if (save):
         dateTimeObj = datetime.now()

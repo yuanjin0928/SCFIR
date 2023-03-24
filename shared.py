@@ -55,7 +55,7 @@ def weightNormAndQuan(w, m):
     a = np.abs(w)
     sum = np.sum(a)
     t = a / sum * 2**m
-    q = np.round(t)
+    q = np.round(t).astype(int)
 
     while (np.sum(q) > 2**m):
         i = np.argmax(q-t)
@@ -92,6 +92,16 @@ def softMux(input, sel):
     input = np.logical_and(input, mask)
     return np.logical_or.reduce(input, axis=1)
 
+def correlation(input0, input1):
+    p0 = np.sum(input0) / input0.shape[0]
+    p1 = np.sum(input1) / input1.shape[0]
+    delta = np.sum(np.logical_and(input0, input1))/input0.shape[0] - p0*p1
+    if delta == 0:
+        return 0
+    elif delta > 0:
+        return delta/(min(p0, p1) - p0*p1)
+    else:
+        return delta/(p0*p1 - max(p0+p1-1,0))
 # input = np.array([[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],
 #                 [0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0]])
 # sel = np.array([[0,0,0],[0,0,1],[0,1,0],[0,1,1],[1,0,0],[1,0,1],[1,1,0],[1,1,1],])
