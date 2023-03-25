@@ -10,7 +10,9 @@ import FIRRun
 power = 5
 num, times = 2**power, 100
 samples = inputGen.uniform(num, times)
-#samples = np.ones((num, times))*(1/2)
+# x1 = np.arange(-1,1,1/16)
+# x2 = np.arange(-1,1,1/16)
+# samples = np.column_stack((x1,x2))
 """generate weight"""
 weight = weightGen.itentical(1/32, num)
 

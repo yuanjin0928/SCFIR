@@ -65,8 +65,8 @@ def HWARun(input, weight, rns):
     q = shared.weightNormAndQuan(weight, height)
     
     selSC = rns[:, 1:] < 0.5
-    # tranResult = np.sum(selSC, axis=0)
-    # cor = shared.correlation(selSC[:, 0], selSC[:, 1])
+    #tranResult = np.sum(selSC, axis=0)
+    #cor = shared.correlation(selSC[:, 0], selSC[:, 1])
     sign = weight < 0
 
     signExt = np.zeros((1,2**height), dtype=bool)
@@ -83,17 +83,17 @@ def HWARun(input, weight, rns):
         cnt = 0
         for j in range(len(q)):
             num = q[j]
-            inputExt[cnt:(cnt+num)] = input[i][j]
+            inputExt[0][cnt:(cnt+num)] = input[i][j]
             cnt = cnt + num
 
         # Convert input to bipolar represented SN
         inputSC = np.reshape(rns[:, 0], (-1,1)) < (inputExt+1)/2
-        # tranResult = np.sum(inputSC, axis=0)
+        #tranResult = np.sum(inputSC, axis=0)
         
         productSC = np.logical_xor(inputSC, signExt)
-        # tranResult = np.sum(productSC, axis=0)
+        #tranResult = np.sum(productSC, axis=0)
         outputSC = shared.softMux(productSC, selSC)
-        # tranResult = np.sum(outputSC, axis=0)
+        #tranResult = np.sum(outputSC, axis=0)
         
         n1 = np.sum(outputSC)
         result[i] = 2*n1/rns.shape[0]-1
@@ -118,12 +118,14 @@ def MWARun(input, weight, rns):
     
     # Transform conditional probability to SC numbers
     selSC = np.zeros((rns.shape[0], len(condProb)), dtype=bool)
-    selSC[:, 0] = rns[:, 1] < (condProb[0][0] + 1)/2
+    selSC[:, 0] = rns[:, 1] < condProb[0][0]
+    tranResult = np.sum(selSC[:, 0])
     for i in range(1, len(condProb)):
         levelCondProb = np.array(condProb[i]).reshape(1,-1)
-        muxInput = np.reshape(rns[:, 1+i], (-1,1)) < (levelCondProb+1)/2
+        muxInput = np.reshape(rns[:, 1+i], (-1,1)) < levelCondProb
 
         selSC[:, i] = shared.softMux(muxInput, selSC[:, i-1::-1])
+        tranResult = np.sum(selSC[:, i], axis=0)
 
     sign = weight < 0
 
@@ -131,9 +133,11 @@ def MWARun(input, weight, rns):
     for i in range(input.shape[0]):
         # Transform input into SC numbers
         inputSC = np.reshape(rns[:, 0], (-1,1)) < (np.reshape(input[i, :], (1,-1))+1)/2
+        tranResult = np.sum(inputSC, axis=0)
         # Use xnor to perform multiplication of input and weight 
         productSC = np.logical_not(np.logical_xor(inputSC, sign))
         outputSC = shared.softMux(productSC, selSC[:, ::-1])
+        tranResult = np.sum(outputSC, axis=0)
 
         n1 = np.sum(outputSC)
         result[i] = 2*n1/rns.shape[0]-1
