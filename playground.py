@@ -8,9 +8,9 @@ import FIRRun
 
 """generate input"""
 power = 5
-num, times = 2**power, 10
+num, times = 2**power, 100
 samples = inputGen.uniform(num, times)
-
+#samples = np.ones((num, times))*(1/2)
 """generate weight"""
 weight = weightGen.itentical(1/32, num)
 

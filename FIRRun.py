@@ -15,6 +15,7 @@ def CVTRun(input, weight, rns):
     """
     input = np.transpose(input)
     weight = np.reshape(weight, (1,-1))
+    inputPower = math.log2(weight.shape[1])
     # Convert weight to bipolar represented SN
     weightSC = np.reshape(rns[:, 1], (-1,1)) < (weight+1)/2
     #tranResult = 2*np.sum(weightSC, axis=0) / rns.shape[0] -1
@@ -43,7 +44,8 @@ def CVTRun(input, weight, rns):
         result[i] = 2*n1/rns.shape[0]-1
         #trueResult = np.inner(input[i, :], weight)
 
-    return result
+    calib = result * 2**inputPower
+    return result, calib
 
 
 def HWARun(input, weight, rns):
@@ -63,6 +65,8 @@ def HWARun(input, weight, rns):
     q = shared.weightNormAndQuan(weight, height)
     
     selSC = rns[:, 1:] < 0.5
+    # tranResult = np.sum(selSC, axis=0)
+    # cor = shared.correlation(selSC[:, 0], selSC[:, 1])
     sign = weight < 0
 
     signExt = np.zeros((1,2**height), dtype=bool)
@@ -84,13 +88,18 @@ def HWARun(input, weight, rns):
 
         # Convert input to bipolar represented SN
         inputSC = np.reshape(rns[:, 0], (-1,1)) < (inputExt+1)/2
+        # tranResult = np.sum(inputSC, axis=0)
         
         productSC = np.logical_xor(inputSC, signExt)
+        # tranResult = np.sum(productSC, axis=0)
         outputSC = shared.softMux(productSC, selSC)
+        # tranResult = np.sum(outputSC, axis=0)
         
         n1 = np.sum(outputSC)
         result[i] = 2*n1/rns.shape[0]-1
-    return result 
+    
+    calib = result * np.sum(np.abs(weight))
+    return result, calib 
 
 def MWARun(input, weight, rns):
     """Multi_level weighted average(MWA) design of a FIR filter
@@ -129,7 +138,8 @@ def MWARun(input, weight, rns):
         n1 = np.sum(outputSC)
         result[i] = 2*n1/rns.shape[0]-1
 
-    return result
+    calib = result * np.sum(np.abs(weight))
+    return result, calib
 
 
 def MWACalCondProb(weight):

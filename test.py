@@ -31,9 +31,7 @@ def Test_SCLen(arch, minLen, maxLen, samples, weight):
             pass
 
         """filter run"""
-        result = Filter[arch]['func'](samples, weight, rns)
-        calib = result * 2**samplesPower
-        
+        result, calib = Filter[arch]['func'](samples, weight, rns) 
         error[rnsLen-minLen] = (np.sum(np.power(Ref-calib, 2))/numOfExprm)**(1/2)
     
     return error
