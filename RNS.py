@@ -37,14 +37,14 @@ def lfsrRNG(size, num):
                 break
 
 def haltonRNG(num, length):
-    """Generate Halton sequences
-    From Florian's Halton.py for SC based decryption
+    """Generate halton sequences
+    From Florian's halton.py for SC based decryption
     Args:
         num (int): num of sequences 
         length (int): number of rn in each sequence
     
     Returns:
-        array: Halton sequence
+        array: halton sequence
     """
     CWD = os.getcwd()
 
@@ -55,23 +55,23 @@ def haltonRNG(num, length):
             break
         big_number += 1000
 
-    HaltonDir = os.path.join(CWD, 'rng/halton')
-    folders = os.listdir(HaltonDir)
+    haltonDir = os.path.join(CWD, 'rng/halton')
+    folders = os.listdir(haltonDir)
     folders = sorted([int(element) for element in folders])
     if length > max(folders):
         for primes in base:
             haltonFileName = os.path.join(CWD, 'halton', '{}'.format(length), '{}'.format(primes))
             np.save(haltonFileName, van_der_corput(length, primes))
     elif length < min(folders):
-        HaltonSubDir = os.path.join(HaltonDir, '{}'.format(min(folders)))
+        haltonSubDir = os.path.join(haltonDir, '{}'.format(min(folders)))
         for primes in base:
-            haltonFileName = os.path.join(HaltonSubDir, '{}'.format(primes))
+            haltonFileName = os.path.join(haltonSubDir, '{}'.format(primes))
             if not os.path.isfile(haltonFileName + '.npy'):
                 np.save(haltonFileName, van_der_corput(min(folders), primes))    
     else:
-        HaltonSubDir = os.path.join(HaltonDir, '{}'.format(length))
+        haltonSubDir = os.path.join(haltonDir, '{}'.format(length))
         for primes in base:
-            haltonFileName = os.path.join(HaltonSubDir, '{}'.format(primes))
+            haltonFileName = os.path.join(haltonSubDir, '{}'.format(primes))
             if not os.path.isfile(haltonFileName + '.npy'):
                 np.save(haltonFileName, van_der_corput(min(folders), primes))    
 

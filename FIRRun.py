@@ -83,7 +83,7 @@ def HWARun(input, weight, rns):
         cnt = 0
         for j in range(len(q)):
             num = q[j]
-            inputExt[0][cnt:(cnt+num)] = input[i][j]
+            inputExt[0][cnt:(cnt+num)] = input[i, j]
             cnt = cnt + num
 
         # Convert input to bipolar represented SN

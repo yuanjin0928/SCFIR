@@ -19,9 +19,9 @@ weight = weightGen.lowPassFir(0.2, 31)
 """test effect of sc's length on the precision of filter"""
 minLen = 8
 maxLen = 20
-CWAError = test.Test_SCLen('CWA', minLen, maxLen, samples, weight)
-HWAError = test.Test_SCLen('HWA', minLen, maxLen, samples, weight)
-MWAError = test.Test_SCLen('MWA', minLen, maxLen, samples, weight)
+CWAError = test.Test_SCLen('CWA', minLen, maxLen, 'halton', samples, weight)
+HWAError = test.Test_SCLen('HWA', minLen, maxLen, 'halton', samples, weight)
+MWAError = test.Test_SCLen('MWA', minLen, maxLen, 'halton', samples, weight)
 
 """compare result"""
 xaxis = list(range(minLen, maxLen+1))
@@ -32,7 +32,7 @@ for i in range(len(xaxis)):
     plt.text(xaxis[i], CWAError[i], str(round(CWAError[i], 5)))
     plt.text(xaxis[i], HWAError[i], str(round(HWAError[i], 5)))
     plt.text(xaxis[i], MWAError[i], str(round(MWAError[i], 5))) 
-plt.title('Performance of different implementation of SC FIR flter change against SC length(LFSR)', fontsize=14)
+plt.title('Performance of different implementation of SC FIR flter change against SC length(Halton)', fontsize=14)
 plt.legend(fontsize=14)
 plt.xticks(fontsize=14)
 plt.yticks(fontsize=14)
