@@ -4,7 +4,7 @@ import numpy as np
 import FIRRun
 
 Filter = {
-    'CVT': {'func': FIRRun.CVTRun, 'rns': 2},
+    'CWA': {'func': FIRRun.CWARun, 'rns': 2},
     'HWA': {'func': FIRRun.HWARun, 'rns': 1},
     'MWA': {'func': FIRRun.MWARun, 'rns': 1},
     'OLMUX': {'func': FIRRun.OLMUXRun, 'rns': 0}

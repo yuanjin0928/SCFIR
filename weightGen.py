@@ -10,5 +10,3 @@ def lowPassFir(cutFreq, order):
     coefficients = signal.firwin(order+1, cutFreq, window=window, fs=360)
 
     return coefficients
-
-lowPassFir(0.2, 31)

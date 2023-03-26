@@ -20,16 +20,22 @@ weight = weightGen.lowPassFir(0.2, 31)
 """test effect of sc's length on the precision of filter"""
 minLen = 8
 maxLen = 20
-CVTError = test.Test_SCLen('CVT', minLen, maxLen, samples, weight)
+CWAError = test.Test_SCLen('CWA', minLen, maxLen, samples, weight)
 HWAError = test.Test_SCLen('HWA', minLen, maxLen, samples, weight)
 MWAError = test.Test_SCLen('MWA', minLen, maxLen, samples, weight)
 
 """compare result"""
 xaxis = list(range(minLen, maxLen+1))
-plt.plot(xaxis, CVTError, 'b-o', xaxis, HWAError, 'g-o', xaxis, MWAError, 'r-o')
+plt.plot(xaxis, CWAError, 'b-o', linewidth = 3, label='CWA')
+plt.plot(xaxis, HWAError, 'g-o', linewidth = 3, label='HWA')
+plt.plot(xaxis, MWAError, 'r-o', linewidth = 3, label='MWA')
 for i in range(len(xaxis)):
-    plt.text(xaxis[i], CVTError[i], str(round(CVTError[i], 5)))
+    plt.text(xaxis[i], CWAError[i], str(round(CWAError[i], 5)))
     plt.text(xaxis[i], HWAError[i], str(round(HWAError[i], 5)))
-    plt.text(xaxis[i], MWAError[i], str(round(MWAError[i], 5)))
-#plt.plot(xaxis, error, 'r-o')
+    plt.text(xaxis[i], MWAError[i], str(round(MWAError[i], 5))) 
+plt.title('Performance of different implementation of SC FIR flter change against SC length(LFSR)', fontsize=14)
+plt.legend(fontsize=14)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
+
 plt.show()

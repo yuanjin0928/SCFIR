@@ -2,8 +2,8 @@ import numpy as np
 import math
 import shared
 
-def CVTRun(input, weight, rns):
-    """Conventional design of a FIR filter
+def CWARun(input, weight, rns):
+    """Conventional weighted design of a FIR filter
 
     Args:
         input (2d numpy array): inputs to the filter

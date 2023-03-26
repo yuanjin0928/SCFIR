@@ -80,7 +80,7 @@ def softMux(input, sel):
     """
     mask = np.ones(input.shape, dtype=bool)
 
-    for i in range(sel.shape[1]):
+    for i in range(sel.shape[1]): 
         shift = sel.shape[1]-1-i
         for j in range(mask.shape[1]):
             quotient = np.right_shift(j,shift)
