@@ -85,6 +85,7 @@ def softMux(input, sel):
         for j in range(mask.shape[1]):
             quotient = np.right_shift(j,shift)
             if (quotient % 2 == 1):
+                # consider each column of input array as one input to the mux, and perform selection
                 mask[:, j] = np.logical_and(mask[:, j], sel[:, i])    
             else:
                 mask[:, j] = np.logical_and(mask[:, j], np.logical_not(sel[:, i]))

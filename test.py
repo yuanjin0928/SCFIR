@@ -10,7 +10,7 @@ Filter = {
     'OLMUX': {'func': FIRRun.OLMUXRun, 'rns': 0}
 }
 
-def Test_SCLen(arch, minLen, maxLen, samples, weight):
+def Test_SCLen(arch, minLen, maxLen, rnType, samples, weight):
     """test effect of sc's length on the precision of filter"""
     CWD = os.getcwd()
     samplesPower = int(math.log2(len(weight)))
@@ -22,7 +22,10 @@ def Test_SCLen(arch, minLen, maxLen, samples, weight):
     for rnsLen in range(minLen, maxLen+1):
         """select rns"""
         if arch != 'OLMUX':
-            rngFolder = os.path.join(CWD, 'rng/lfsr', '{}'.format(rnsLen))
+            if rnType == 'lfsr':
+                rngFolder = os.path.join(CWD, 'rng/lfsr', '{}'.format(rnsLen))
+            elif rnType == 'halton':
+                rngFolder = os.path.join(CWD, 'rng/halton')
             rngFiles = sorted(os.listdir(rngFolder))
             rns = np.empty((2**rnsLen, samplesPower+Filter[arch]['rns']))
             for i in range(rns.shape[1]):

@@ -36,6 +36,82 @@ def lfsrRNG(size, num):
             if cnt == num:
                 break
 
+def haltonRNG(num, length):
+    """Generate Halton sequences
+    From Florian's Halton.py for SC based decryption
+    Args:
+        num (int): num of sequences 
+        length (int): number of rn in each sequence
+    
+    Returns:
+        array: Halton sequence
+    """
+    CWD = os.getcwd()
+
+    big_number = 10
+    while 'Not enough primes':
+        base = primes_from_2_to(big_number)[:num]
+        if len(base) == num:
+            break
+        big_number += 1000
+
+    HaltonDir = os.path.join(CWD, 'rng/halton')
+    folders = os.listdir(HaltonDir)
+    folders = sorted([int(element) for element in folders])
+    if length > max(folders):
+        for primes in base:
+            haltonFileName = os.path.join(CWD, 'halton', '{}'.format(length), '{}'.format(primes))
+            np.save(haltonFileName, van_der_corput(length, primes))
+    elif length < min(folders):
+        HaltonSubDir = os.path.join(HaltonDir, '{}'.format(min(folders)))
+        for primes in base:
+            haltonFileName = os.path.join(HaltonSubDir, '{}'.format(primes))
+            if not os.path.isfile(haltonFileName + '.npy'):
+                np.save(haltonFileName, van_der_corput(min(folders), primes))    
+    else:
+        HaltonSubDir = os.path.join(HaltonDir, '{}'.format(length))
+        for primes in base:
+            haltonFileName = os.path.join(HaltonSubDir, '{}'.format(primes))
+            if not os.path.isfile(haltonFileName + '.npy'):
+                np.save(haltonFileName, van_der_corput(min(folders), primes))    
+
+def primes_from_2_to(n):
+    """Prime number from 2 to n
+    From stackoverflow <https://stackoverflow.com/questions/2068372>
+
+    Args:
+        n (int): sup bound with n >= 6
+
+    Returns:
+        list: primes in 2 <= p < n 
+    """
+    sieve = np.ones(n // 3 + (n % 6 == 2), dtype=bool)
+    for i in range(1,int(n ** 0.5) // 3 + 1):
+        if sieve[i]:
+            k = 3 * i + 1 | 1
+            sieve[k * k // 3::2 * k] = False
+            sieve[k * (k - 2 * (i & 1) + 4) // 3::2 * k] = False
+    
+    return np.r_[2,3, ((3 * np.nonzero(sieve)[0][1:] + 1) | 1)]
+
+def van_der_corput(length, base):
+    sequence = []
+    cnt = 0
+    for i in range(2**length+1):
+        n_th_number, denom = 0., 1.
+        j = i
+        while j > 0:
+            j, remainder = divmod(j, base)
+            denom *= base
+            n_th_number += remainder / denom
+        
+        if i > 0:
+            sequence.append(n_th_number)
+            cnt += 1
+    
+    return np.array(sequence)
+
+
 def lfsrRNGGen(self, num, save):
     lfsrRNS = LFSR(fpoly=self.poly, initstate=self.seed)
     state = lfsrRNS.state
@@ -66,3 +142,5 @@ def lfsrRNGGen(self, num, save):
                 outputRNS[j][i] = shared.bin2Float(rotated1)
 
     self.RNS = outputRNS   
+
+haltonRNG(8, 24)

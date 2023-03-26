@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import inputGen
 import weightGen
 import test
-import FIRRun
 
 """generate input"""
 power = 5
