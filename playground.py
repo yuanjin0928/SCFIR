@@ -14,7 +14,8 @@ samples = inputGen.uniform(num, times)
 # x2 = np.arange(-1,1,1/16)
 # samples = np.column_stack((x1,x2))
 """generate weight"""
-weight = weightGen.itentical(1/32, num)
+#weight = weightGen.itentical(1/32, num)
+weight = weightGen.lowPassFir(0.2, 31)
 
 """test effect of sc's length on the precision of filter"""
 minLen = 8

@@ -1,13 +1,11 @@
 import os
+import math
 import numpy as np
-from math import *
-from datetime import datetime
 from lfsr import LFSR
 import shared
 
-CWD = os.getcwd()
-
 def lfsrRNG(size, num):
+    CWD = os.getcwd()
     lfsrPolyFile = os.path.join(CWD, 'rng/lfsr_poly', '{}'.format(size) + '.DAT')
     with open(lfsrPolyFile) as f:
         # discard description
@@ -48,7 +46,7 @@ def lfsrRNGGen(self, num, save):
     for i in range(lfsrRNS.expectedPeriod+1):
         #print(f'state: {state}')
         outputRNS[0][i] = shared.bin2Float(state)
-        rotated0 = np.roll(np.array(state), floor(self.length/2))
+        rotated0 = np.roll(np.array(state), math.floor(self.length/2))
         #print(f'rotated0: {rotated0}')
         # add all-0 state
         if (np.array_equal(state, speState)):
@@ -66,24 +64,5 @@ def lfsrRNGGen(self, num, save):
                     rotated1 = np.roll(rotated0, -cnt)
                 #print(f'rotated1: {rotated1}')
                 outputRNS[j][i] = shared.bin2Float(rotated1)
-        
-    if (save):
-        dateTimeObj = datetime.now()
-        timestamp = str(dateTimeObj.year) + str(dateTimeObj.month) + str(dateTimeObj.day) + str(dateTimeObj.hour) + str(dateTimeObj.minute)
-        fileName = f'lfsr_L{self.length}_N{num}_{timestamp}.txt'
-        f = open(fileName, mode='w')
-        print(f'seed: {self.seed}', file=f)
-        print(f'poly: {self.poly}', file=f)
-        np.savetxt(f, outputRNS.T)
-        f.close()   
 
     self.RNS = outputRNS   
-
-def loadRNS(self):
-    root = tk.Tk()
-    root.withdraw()
-    filePath = filedialog.askopenfilename()
-    self.RNS = np.loadtxt(filePath, skiprows=2).T
-
-# for i in range(9, 21):
-#     lfsrRNG(i,8)
