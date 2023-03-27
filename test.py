@@ -97,6 +97,3 @@ def Test_DeterministicSel(arch, minLen, maxLen, rnType, samples, weight):
             error[rnsLen-minLen] = (np.sum(np.power(Ref-calib, 2))/numOfExprm)**(1/2)
     
     return error
-# MWA
-
-# OLMUX
