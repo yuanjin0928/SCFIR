@@ -21,26 +21,8 @@ def bin2Float(bin):
         numerator += bin[i]
     return numerator / denominator
 
-def signedBin2Float(bin):
-    """Signed binary to decimal
-
-    Args:
-        bin (1d numpy array): array of bits representing a signed float 
-
-    Returns:
-        flost: float representd by bin 
-    """
-    numerator = 0
-    denominator = pow(2, len(bin)-1)
-    for i in range(1,len(bin)):
-        # bin represent a decimal
-        numerator *= 2 
-        numerator += bin[i]
-
-    if (bin[0] == 1):
-        numerator -= 2**(len(bin)-1)
-
-    return numerator / denominator
+def int2binArray(dec, size):
+    return np.flip(np.array([(dec >> i) & 1 for i in range(size)]))
 
 def weightNormAndQuan(w, m):
     """Mux tree weight normalization and quantization
@@ -103,8 +85,3 @@ def correlation(input0, input1):
         return delta/(min(p0, p1) - p0*p1)
     else:
         return delta/(p0*p1 - max(p0+p1-1,0))
-# input = np.array([[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],
-#                 [0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,1,0,0]])
-# sel = np.array([[0,0,0],[0,0,1],[0,1,0],[0,1,1],[1,0,0],[1,0,1],[1,1,0],[1,1,1],])
-# a = softMux(input, sel)
-# print(a.shape)

@@ -141,6 +141,14 @@ def lfsrRNGGen(self, num, save):
                 #print(f'rotated1: {rotated1}')
                 outputRNS[j][i] = shared.bin2Float(rotated1)
 
-    self.RNS = outputRNS   
+    self.RNS = outputRNS 
 
-haltonRNG(8, 24)
+def deterministicSel(rnsLen, samplesPower):
+    rns = np.empty((2**rnsLen, samplesPower))
+    sliceLen = rnsLen - samplesPower
+    for i in range(2**samplesPower):
+        binArray = shared.int2binArray(i, samplesPower)
+        selArray = np.array([(x+0.5) if (x==0) else 0 for x in binArray])
+        rns[i*2**sliceLen:(i+1)*2**sliceLen, :] = selArray
+    
+    return rns

@@ -184,9 +184,9 @@ def OLMUXRun(input, weight, rns):
     """Lowest optimum MUX tree design of a FIR filter
 
     Args:
-        input (1d numpy array): input of the filter
+        input (2d numpy array): input of the filter
         weight (1d numpy array): weight of the filter
-        rns (1d numpy array): used to convert input and weight to stochastic numbers
+        rns (2d numpy array): used to convert input and weight to stochastic numbers
     
     Returns:
         1d numpy array with type float: output of the FIR filter
@@ -194,18 +194,17 @@ def OLMUXRun(input, weight, rns):
     # Decide input position in the optimum lowest tree
     inputTree = OLMUXCalInPos(weight)
     # Build optimum lowest tree
-    muxTree = OLMUXBuildTree(inputTree)
+    muxTree = OLMUXBuildTree(weight,inputTree)
     
-    # transform input to SC 
     input = np.transpose(input) 
     weight = np.reshape(weight, (1,-1))
-    inputSC = rns[:, 0] < (input[i]+1)/2
     sign = weight < 0
-    productSC = np.logical_xor(inputSC, sign)
     
     result = np.empty(input.shape[0])
     for i in range(input.shape[0]):
-    # compute the results level by level. The output of previous level is the input of current level
+        inputSC = np.reshape(rns[:, 0], (-1,1)) < (np.reshape(input[i], (1,-1))+1)/2
+        productSC = np.logical_xor(inputSC, sign)
+        # compute the results level by level. The output of previous level is the input of current level
         for j in range(len(muxTree)):
             cnt = 0 
             muxNum = len(muxTree[j]['selWeight'])
@@ -215,22 +214,26 @@ def OLMUXRun(input, weight, rns):
             if (j==0):
                 for k in range(len(muxTree[j]['primaryInput'])):
                     if (k%2==0):
-                        input0[:, cnt] = productSC[muxTree[j]['primaryInput'][k]]
+                        input0[:, cnt] = productSC[:, muxTree[j]['primaryInput'][k]]
                     else:
-                        input1[:, cnt] = productSC[muxTree[j]['primaryInput'][k]]
+                        input1[:, cnt] = productSC[:, muxTree[j]['primaryInput'][k]]
                         cnt = cnt + 1
             else:
                 levelInput = np.empty((rns.shape[0], len(muxTree[j]['primaryInput'])), dtype = bool)
                 for k in range(len(muxTree[j]['primaryInput'])):
-                    levelInput[:, k] = productSC[muxTree[j]['primaryInput'][k]]
+                    levelInput[:, k] = productSC[:, muxTree[j]['primaryInput'][k]]
                 input0 = np.concatenate((outputOfLastMuxes, levelInput), axis=1)[:, ::2]
                 input1 = np.concatenate((outputOfLastMuxes, levelInput), axis=1)[:, 1::2]
             selArray = np.array([muxTree[j]['selWeight']])       
-            s =   rns[:, j] < selArray
+            s =   np.reshape(rns[:, j], (-1,1)) < selArray
             # Calculate the output of current depth
             outputOfLastMuxes = np.logical_or(np.logical_and(input0, np.invert(s)), np.logical_and(input1, s))
-
-    return result
+        
+        n1 = np.sum(outputOfLastMuxes)
+        result[i] = 2*n1/rns.shape[0]-1
+    
+    calib = result * np.sum(np.abs(weight))
+    return result, calib
 
 def OLMUXCalInPos(weight):
     """Decide input position in the optimum lowest tree
@@ -406,6 +409,3 @@ def OLMUXBuildTree(weight, inputTree):
             lastInputLinkToMuxes = inputLinkToMuxes  
 
     return muxTree     
-
-# weight = np.array([0.1, 0.2, -0.3, 0.4])
-# print(MWACalCondProb(np.abs(weight)))
