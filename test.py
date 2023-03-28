@@ -179,3 +179,27 @@ def Test_Input_Lfsr_Sel_Halton(arch, minLen, maxLen, samples, weight):
         error[rnsLen-minLen] = (np.sum(np.power(Ref-calib, 2))/numOfExprm)**(1/2)
     
     return error
+
+def Test_Input_Pattern(arch, samples, weight):
+    """test effect of sc's length on the precision of filter"""
+    CWD = os.getcwd()
+    samplesPower = int(math.log2(len(weight)))
+    distributions = samples.shape[2]
+    numOfExprm = samples.shape[1]
+    rnsLen = 12
+
+    """calculate reference"""
+    Ref = np.transpose(np.array([np.dot(np.transpose(samples[:, :, i]), weight) for i in range(distributions)]))
+    error = np.empty(distributions)
+    
+    """select rns"""
+    rngFolder = os.path.join(CWD, 'rng/lfsr', '{}'.format(rnsLen))
+    rngFiles = sorted(os.listdir(rngFolder))
+    rns = np.empty((2**rnsLen, samplesPower+Filter[arch]['rns']))
+    for i in range(rns.shape[1]):
+        rns[:, i] = np.load(os.path.join(rngFolder,rngFiles[i]))
+    for i in range(distributions):
+        """filter run"""
+        result, calib = Filter[arch]['func'](samples[:,:, i], weight, rns) 
+        error[i] = (np.sum(np.power(Ref[:, i]-calib, 2))/numOfExprm)**(1/2)
+    return error

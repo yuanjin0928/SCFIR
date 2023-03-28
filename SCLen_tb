@@ -8,7 +8,8 @@ import test
 """generate input"""
 power = 5
 num, times = 2**power, 100
-samples = inputGen.uniform(num, times)
+para = [-1,1]
+samples = inputGen.uniform(para, num, times)
 """generate weight"""
 weight = weightGen.lowPassFir(0.2, 31)
 

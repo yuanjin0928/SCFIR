@@ -152,3 +152,5 @@ def deterministicSel(rnsLen, samplesPower):
         rns[i*2**sliceLen:(i+1)*2**sliceLen, :] = selArray
     
     return rns
+
+lfsrRNG(12, 10)
